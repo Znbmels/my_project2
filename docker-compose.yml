@@ -1,0 +1,36 @@
+#version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: django_app
+    restart: always
+    volumes:
+      - .:/app
+      - static_data:/app/staticfiles
+      - media_data:/app/media
+    ports:
+      - "8000:8000"
+    command: >
+      sh -c "python manage.py collectstatic --noinput &&
+             gunicorn my_project.wsgi:application --bind 0.0.0.0:8000"
+    environment:
+      - DJANGO_SETTINGS_MODULE=my_project.settings
+      # Добавьте здесь другие переменные окружения, например, SECRET_KEY, DATABASE_URL и т.д.
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx_proxy
+    restart: always
+    ports:
+      - "80:80"  # Nginx будет принимать запросы на стандартном HTTP-порту
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - web
+
+volumes:
+  static_data:
+  media_data:
+
+
