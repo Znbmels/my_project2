@@ -2,7 +2,7 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
-DEBUG = False  # Продакшен
+DEBUG = False  # Продакшн
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'your-secret-key-here'
@@ -39,6 +39,7 @@ INSTALLED_APPS = [
 
 
 MIDDLEWARE = [
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -96,13 +97,16 @@ USE_TZ = True
 
 # Статические файлы
 STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'static'
-#STATIC_ROOT = BASE_DIR / 'staticfiles'
+#STATIC_ROOT = BASE_DIR / 'static'
+STATIC_ROOT = '/app/static'
+
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+#MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = '/app/media'
 
 
 # Настройки REST Framework

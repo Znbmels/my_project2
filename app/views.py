@@ -225,7 +225,7 @@ class StudentErrorListView(APIView):
                                 status=status.HTTP_403_FORBIDDEN)
 
             student = request.user.student  # Fetch student object
-            errors = ErrorLog.objects.filter(student=student)  # Используем объект Student
+            errors = ErrorLog.objects.filter(student=student)  # Использу объект Student
             serializer = ErrorLogSerializer(errors, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -240,7 +240,7 @@ class StudentLessonsAPIView(APIView):
 
     def get(self, request):
         try:
-            # Проверяем, является ли пользователь студентом
+            #является ли пользователь студентом
             if not hasattr(request.user, "student"):
                 return Response(
                     {"error": "Only students can view their lessons"},
@@ -253,7 +253,7 @@ class StudentLessonsAPIView(APIView):
 
             logger.debug(f"Lessons for student {student.id}: {lessons}")
 
-            # Используем минимальный сериализатор для вывода
+            #  минимальный сериализатор для вывода
             serializer = LessonMinimalSerializer(lessons, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
 

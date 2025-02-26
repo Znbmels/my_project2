@@ -22,7 +22,7 @@ urlpatterns = [
     path('api/', include('app.urls')),  # Маршруты нашего приложения
 ]
 
-# Добавляем маршруты для статических и медиафайлов (только для локальной разработки)
+# маршруты для статических и медиафайлов
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
