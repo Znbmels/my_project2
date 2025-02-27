@@ -23,6 +23,7 @@ class Student(models.Model):
 
 
 class Lesson(models.Model):
+    name = models.CharField(max_length=255, default="Default Lesson Name")
     day_of_week = models.CharField(max_length=50)
     start_time = models.TimeField()
     end_time = models.TimeField()
@@ -51,3 +52,17 @@ class ErrorLog(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
     lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name='errorlog_set')  # related_name
     description = models.TextField()
+    is_corrected = models.BooleanField(default=False)  # Новое поле
+
+    def __str__(self):
+        return f"Error for {self.student.name} in {self.lesson.name}"
+
+
+class VideoLesson(models.Model):
+    title = models.CharField(max_length=200)
+    video_url = models.URLField()
+    creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='video_lessons')  # связь с пользователем
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.title

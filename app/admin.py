@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from app.models import User, Teacher, Student, Lesson, Homework, ErrorLog
+from app.models import User, Teacher, Student, Lesson, Homework, ErrorLog, VideoLesson
 
 
 # Регистрация модели User
@@ -59,3 +59,8 @@ class ErrorLogAdmin(admin.ModelAdmin):
     list_display = ('student', 'lesson', 'description')
     list_filter = ('student', 'lesson')
     search_fields = ('description',)
+
+@admin.register(VideoLesson)
+class VideoLessonAdmin(admin.ModelAdmin):
+    list_display = ('title', 'video_url')
+    search_fields = ('title',)

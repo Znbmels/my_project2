@@ -2,12 +2,14 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
-DEBUG = False  # Продакшн
+DEBUG = False # Продакшен
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'your-secret-key-here'
 
 ALLOWED_HOSTS = [
+    '127.0.0.1',
+    'localhost',
     'tahfiz.halalguide.me',
     '37.27.216.212',
     'django_app',
@@ -51,7 +53,6 @@ MIDDLEWARE = [
 
 # Основной URL-конфиг
 ROOT_URLCONF = 'my_project2.urls'
-
 
 # Шаблоны
 TEMPLATES = [
@@ -107,7 +108,6 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 MEDIA_URL = '/media/'
 #MEDIA_ROOT = BASE_DIR / 'media'
 MEDIA_ROOT = '/app/media'
-
 
 # Настройки REST Framework
 REST_FRAMEWORK = {

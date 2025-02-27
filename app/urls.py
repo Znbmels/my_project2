@@ -2,6 +2,9 @@
 
 from django.urls import path
 from . import views
+from .views import ErrorLogUpdateView
+from .views import ErrorLogUpdateView
+
 
 urlpatterns = [
     path('', views.ApiRootView.as_view(), name='api-root'),
@@ -16,4 +19,7 @@ urlpatterns = [
     path('student/homeworks/', views.StudentHomeworkListView.as_view(), name='student-homeworks'),
     path('student/errors/', views.StudentErrorListView.as_view(), name='student-errors'),
     path('student/lessons/', views.StudentLessonsAPIView.as_view(), name='student-lessons'),
+    path('errors/update/', ErrorLogUpdateView.as_view(), name='update-error-log'),
+    path('api/videos/', views.VideoLessonListCreateView.as_view(), name='video-lesson-list-create'),
+    path('api/videos/<int:pk>/', views.VideoLessonDetailView.as_view(), name='video-lesson-detail'),
 ]

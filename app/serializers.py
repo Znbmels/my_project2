@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from app.models import Lesson, Homework, ErrorLog, Student
+from app.models import Lesson, Homework, ErrorLog, Student, VideoLesson
 from django.contrib.auth import get_user_model
 
 User = get_user_model()  # Используем вашу кастомную модель
@@ -38,13 +38,10 @@ class HomeworkSerializer(serializers.ModelSerializer):
 
 
 class ErrorLogSerializer(serializers.ModelSerializer):
-    student = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.filter(role='student')  # Фильтруем только студентов
-    )
-
     class Meta:
         model = ErrorLog
-        fields = ['id', 'student', 'lesson', 'description']
+        fields = ['id', 'student', 'lesson', 'description', 'is_corrected']
+
 
 
 class LessonSerializer(serializers.ModelSerializer):
@@ -68,3 +65,15 @@ class LessonMinimalSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lesson
         fields = ['id', 'day_of_week', 'start_time', 'end_time', 'zoom_link', 'teacher_name']
+
+
+class VideoLessonSerializer(serializers.ModelSerializer):
+    creator = serializers.StringRelatedField(read_only=True)  # или просто поля, если вы хотите выводить имя
+
+    class Meta:
+        model = VideoLesson
+        fields = ['id', 'title', 'video_url', 'creator', 'is_active']
+
+    def create(self, validated_data):
+        # Создаем новый объект VideoLesson с присвоением пользователя в поле creator
+        return VideoLesson.objects.create(**validated_data)

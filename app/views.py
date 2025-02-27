@@ -5,9 +5,10 @@ from django.contrib.auth import authenticate
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
-from app.models import User, Homework, ErrorLog, Lesson, Student
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from app.models import User, Homework, ErrorLog, Lesson, Student, VideoLesson
 from app.services.utils import get_teacher_by_user
 from app.serializers import (
     UserSerializer,
@@ -15,7 +16,10 @@ from app.serializers import (
     HomeworkSerializer,
     ErrorLogSerializer,
     LessonMinimalSerializer,
+    VideoLessonSerializer,
 )
+from rest_framework import generics
+from rest_framework.exceptions import PermissionDenied
 from app.services.lesson_service import create_lesson, get_lessons_by_teacher
 from app.services.homework_service import create_homework, get_homeworks_for_student
 from app.services.error_service import create_error_log, get_errors_for_student
@@ -122,7 +126,6 @@ class ErrorLogCreateView(APIView):
 
     def post(self, request):
         try:
-            # Получаем данные из запроса
             student_id = request.data.get("student")
             lesson_id = request.data.get("lesson")
             description = request.data.get("description")
@@ -133,6 +136,10 @@ class ErrorLogCreateView(APIView):
                 lesson_id=lesson_id,
                 description=description
             )
+
+            # Устанавливаем is_corrected в False по умолчанию
+            error_log.is_corrected = False
+            error_log.save()
 
             # Сериализуем данные
             serializer = ErrorLogSerializer(error_log)
@@ -262,6 +269,69 @@ class StudentLessonsAPIView(APIView):
             return Response({"error": "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-from django.shortcuts import render
+
+class ErrorLogUpdateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request):
+        try:
+            user = request.user
+
+            # Проверяем, является ли пользователь учителем
+            if not hasattr(user, 'teacher'):
+                return Response({"error": "Only teachers can update error logs"}, status=status.HTTP_403_FORBIDDEN)
+
+            # Получаем ID ошибки из запроса
+            error_log_id = request.data.get("error_log_id")
+            if not error_log_id:
+                return Response({"error": "error_log_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Получаем объект ошибки
+            try:
+                error_log = ErrorLog.objects.get(id=error_log_id)
+            except ErrorLog.DoesNotExist:
+                return Response({"error": "Error log not found"}, status=status.HTTP_404_NOT_FOUND)
+
+            # Обновляем поле is_corrected
+            error_log.is_corrected = request.data.get("is_corrected", error_log.is_corrected)
+            error_log.save()
+
+            serializer = ErrorLogSerializer(error_log)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class VideoLessonListCreateView(generics.ListCreateAPIView):
+    queryset = VideoLesson.objects.all()
+    serializer_class = VideoLessonSerializer
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        # Проверяем, что только учитель может создать урок
+        if not hasattr(self.request.user, 'teacher'):  # Например, если у пользователя есть поле teacher
+            raise PermissionDenied("Only teachers can create video lessons.")
+        # Сохраняем видеоурок с привязкой к текущему пользователю
+        serializer.save(creator=self.request.user)
+
+class VideoLessonDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = VideoLesson.objects.all()
+    serializer_class = VideoLessonSerializer
+    authentication_classes = [JWTAuthentication]  # Используем JWT для аутентификации
+    permission_classes = [IsAuthenticated]  # Требуется авторизация для всех пользователей
+
+    def update(self, request, *args, **kwargs):
+        # Проверяем, что только учитель может редактировать уроки
+        if not hasattr(request.user, 'teacher'):
+            raise PermissionDenied("Only teachers can update video lessons.")
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        # Проверяем, что только учитель может удалять уроки
+        if not hasattr(request.user, 'teacher'):
+            raise PermissionDenied("Only teachers can delete video lessons.")
+        return super().destroy(request, *args, **kwargs)
 
 # Create your views here.
