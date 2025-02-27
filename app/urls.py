@@ -20,6 +20,6 @@ urlpatterns = [
     path('student/errors/', views.StudentErrorListView.as_view(), name='student-errors'),
     path('student/lessons/', views.StudentLessonsAPIView.as_view(), name='student-lessons'),
     path('errors/update/', ErrorLogUpdateView.as_view(), name='update-error-log'),
-    path('api/videos/', views.VideoLessonListCreateView.as_view(), name='video-lesson-list-create'),
-    path('api/videos/<int:pk>/', views.VideoLessonDetailView.as_view(), name='video-lesson-detail'),
+    path('videos/', views.VideoLessonListCreateView.as_view(), name='video-lesson-list-create'),
+    path('videos/<int:pk>/', views.VideoLessonDetailView.as_view(), name='video-lesson-detail'),
 ]
