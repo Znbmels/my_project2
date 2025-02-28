@@ -26,6 +26,7 @@ from app.services.error_service import create_error_log, get_errors_for_student
 from app.services.teacher_service import get_teacher_by_user
 from app.services.student_service import get_student_by_user
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -79,9 +80,11 @@ class HomeworkListView(APIView):
 
     def get(self, request):
         try:
-            homeworks = Homework.objects.select_related("lesson").all()  # Fetch homework with related lesson
+            # Исправление запроса
+            homeworks = Homework.objects.select_related('student')  # Используйте 'student' вместо 'lesson'
             serializer = HomeworkSerializer(homeworks, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
+
         except Exception as e:
             logger.error(f"Error fetching homeworks: {e}")
             return Response({"error": "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -93,6 +96,7 @@ class HomeworkCreateView(APIView):
 
     def post(self, request):
         try:
+            # Проверка, что только учителя могут создавать задания
             if not hasattr(request.user, "teacher"):
                 return Response({"error": "Only teachers can create homework assignments"},
                                 status=status.HTTP_403_FORBIDDEN)
@@ -103,6 +107,7 @@ class HomeworkCreateView(APIView):
                 return Response({"error": "You must specify at least one student"},
                                 status=status.HTTP_400_BAD_REQUEST)
 
+            # Получаем студентов из базы данных
             students = Student.objects.filter(id__in=student_ids)
             if not students.exists():
                 return Response({"error": "No valid students found"},
@@ -111,21 +116,19 @@ class HomeworkCreateView(APIView):
             # Создаём ДЗ для каждого студента
             homeworks = []
             for student in students:
-                homework_data = {
-                    "student": student.id,
-                    "day": request.data.get("day"),
-                    "topic": request.data.get("topic"),
-                    "tasks": request.data.get("tasks"),
-                }
-                serializer = HomeworkSerializer(data=homework_data)
-                if serializer.is_valid():
-                    serializer.save()
-                    homeworks.append(serializer.data)
-                else:
-                    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                # Передаем данные в сервис для создания ДЗ
+                homework_data = create_homework(
+                    student.id,
+                    request.data.get("day"),
+                    request.data.get("topic"),
+                    request.data.get("tasks")
+                )
+                homeworks.append(homework_data)
 
+            # Возвращаем успешный ответ
             return Response({"message": "Homework created successfully", "homeworks": homeworks},
                             status=status.HTTP_201_CREATED)
+
         except Exception as e:
             logger.error(f"Error creating homework: {e}")
             return Response({"error": "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -230,21 +233,22 @@ class StudentHomeworkListView(APIView):
 
     def get(self, request):
         try:
+            # Проверка, является ли пользователь студентом
             if not hasattr(request.user, "student"):
                 return Response({"error": "Only students can view their homework assignments"},
-                                status=status.HTTP_403_FORBIDDEN)
+                                 status=status.HTTP_403_FORBIDDEN)
 
-            student = request.user.student
-            lessons = Lesson.objects.filter(students=student)
-            homeworks = Homework.objects.filter(lesson__in=lessons)
-            logger.debug(f"Homeworks for student: {homeworks}")  # Логирование
+            student = request.user.student  # Получаем объект студента
+            homeworks = Homework.objects.filter(student=student)  # Фильтруем по студенту
+            logger.debug(f"Homeworks for student: {homeworks}")  # Логирование для отладки
+
+            # Сериализуем и возвращаем домашние задания
             serializer = HomeworkSerializer(homeworks, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         except Exception as e:
             logger.error(f"Error fetching student homework: {e}")
             return Response({"error": "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 # View to list error logs for a student
 class StudentErrorListView(APIView):

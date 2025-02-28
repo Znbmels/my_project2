@@ -1,16 +1,29 @@
-# app/services/homework_service.py
+from app.models import Homework, Student
+from app.serializers import HomeworkSerializer
 
-from app.models import Homework
+def create_homework(student_id, day, topic, tasks):
+    try:
+        student = Student.objects.get(id=student_id)
+    except Student.DoesNotExist:
+        raise ValueError(f"Student with ID {student_id} does not exist.")
 
-def create_homework(student, day, topic, tasks):
+    # Создаём домашнее задание
     homework = Homework.objects.create(
         student=student,
         day=day,
         topic=topic,
         tasks=tasks
     )
-    return homework
 
-def get_homeworks_for_student(student):
-    # Выбираем домашние задания для уроков, в которых участвует студент.
+    # Сериализуем объект Homework для возвращения данных
+    serializer = HomeworkSerializer(homework)
+    return serializer.data
+
+
+def get_homeworks_for_student(student_id):
+    try:
+        student = Student.objects.get(id=student_id)
+    except Student.DoesNotExist:
+        raise ValueError(f"Student with ID {student_id} does not exist.")
+
     return Homework.objects.filter(student=student)

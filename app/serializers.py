@@ -36,6 +36,11 @@ class HomeworkSerializer(serializers.ModelSerializer):
         model = Homework
         fields = ['id', 'student', 'day', 'topic', 'tasks']
 
+    def validate_student(self, value):
+        if not Student.objects.filter(id=value).exists():
+            raise serializers.ValidationError("Student not found.")
+        return value
+
 
 class ErrorLogSerializer(serializers.ModelSerializer):
     class Meta:
