@@ -34,7 +34,7 @@ class StudentSerializer(serializers.ModelSerializer):
 class HomeworkSerializer(serializers.ModelSerializer):
     class Meta:
         model = Homework
-        fields = ['id', 'lesson', 'day', 'topic', 'tasks']
+        fields = ['id', 'student', 'day', 'topic', 'tasks']
 
 
 class ErrorLogSerializer(serializers.ModelSerializer):

@@ -40,7 +40,7 @@ class Lesson(models.Model):
 
 
 class Homework(models.Model):
-    lesson = models.ForeignKey('Lesson', on_delete=models.CASCADE, related_name='homework_set')
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='homeworks')
     day = models.DateField()
     topic = models.CharField(max_length=255)
     tasks = models.JSONField()

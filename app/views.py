@@ -96,11 +96,36 @@ class HomeworkCreateView(APIView):
             if not hasattr(request.user, "teacher"):
                 return Response({"error": "Only teachers can create homework assignments"},
                                 status=status.HTTP_403_FORBIDDEN)
-            serializer = HomeworkSerializer(data=request.data)
-            if serializer.is_valid():
-                serializer.save()  # Save homework data
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            # Получаем список ID студентов из запроса
+            student_ids = request.data.get("students", [])
+            if not student_ids:
+                return Response({"error": "You must specify at least one student"},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+            students = Student.objects.filter(id__in=student_ids)
+            if not students.exists():
+                return Response({"error": "No valid students found"},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+            # Создаём ДЗ для каждого студента
+            homeworks = []
+            for student in students:
+                homework_data = {
+                    "student": student.id,
+                    "day": request.data.get("day"),
+                    "topic": request.data.get("topic"),
+                    "tasks": request.data.get("tasks"),
+                }
+                serializer = HomeworkSerializer(data=homework_data)
+                if serializer.is_valid():
+                    serializer.save()
+                    homeworks.append(serializer.data)
+                else:
+                    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            return Response({"message": "Homework created successfully", "homeworks": homeworks},
+                            status=status.HTTP_201_CREATED)
         except Exception as e:
             logger.error(f"Error creating homework: {e}")
             return Response({"error": "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
