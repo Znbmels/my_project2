@@ -17,6 +17,7 @@ from app.serializers import (
     ErrorLogSerializer,
     LessonMinimalSerializer,
     VideoLessonSerializer,
+    StudentSerializer,
 )
 from rest_framework import generics
 from rest_framework.exceptions import PermissionDenied
@@ -363,4 +364,13 @@ class VideoLessonDetailView(generics.RetrieveUpdateDestroyAPIView):
             raise PermissionDenied("Only teachers can delete video lessons.")
         return super().destroy(request, *args, **kwargs)
 
-# Create your views here.
+
+class StudentListView(generics.ListAPIView):
+    serializer_class = StudentSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == 'teacher':  # Проверяем, что пользователь — учитель
+            return Student.objects.all()
+        return Student.objects.none()

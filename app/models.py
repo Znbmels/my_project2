@@ -22,6 +22,7 @@ class Student(models.Model):
     name = models.CharField(max_length=100)
 
 
+
 class Lesson(models.Model):
     name = models.CharField(max_length=255, default="Default Lesson Name")
     day_of_week = models.CharField(max_length=50)

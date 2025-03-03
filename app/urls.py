@@ -4,7 +4,7 @@ from django.urls import path
 from . import views
 from .views import ErrorLogUpdateView
 from .views import ErrorLogUpdateView
-
+from .views import StudentListView
 
 urlpatterns = [
     path('', views.ApiRootView.as_view(), name='api-root'),
@@ -22,4 +22,5 @@ urlpatterns = [
     path('errors/update/', ErrorLogUpdateView.as_view(), name='update-error-log'),
     path('videos/', views.VideoLessonListCreateView.as_view(), name='video-lesson-list-create'),
     path('videos/<int:pk>/', views.VideoLessonDetailView.as_view(), name='video-lesson-detail'),
+    path('student/', views.StudentListView.as_view(), name='student-list'),
 ]
