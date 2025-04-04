@@ -1,4 +1,5 @@
 import logging
+from collections import defaultdict
 from django.views import View
 from django.http import JsonResponse
 from django.contrib.auth import authenticate
@@ -234,18 +235,36 @@ class StudentHomeworkListView(APIView):
 
     def get(self, request):
         try:
-            # Проверка, является ли пользователь студентом
             if not hasattr(request.user, "student"):
                 return Response({"error": "Only students can view their homework assignments"},
                                  status=status.HTTP_403_FORBIDDEN)
 
-            student = request.user.student  # Получаем объект студента
-            homeworks = Homework.objects.filter(student=student)  # Фильтруем по студенту
-            logger.debug(f"Homeworks for student: {homeworks}")  # Логирование для отладки
+            student = request.user.student
+            homeworks = Homework.objects.filter(student=student).select_related('student', 'lesson__teacher')
+            error_logs = ErrorLog.objects.filter(student=student)
 
-            # Сериализуем и возвращаем домашние задания
-            serializer = HomeworkSerializer(homeworks, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            # Мапим ошибки по ID домашки
+            error_map = {error.lesson.id: error.is_corrected for error in error_logs}
+
+            grouped_data = defaultdict(list)
+
+            for hw in homeworks:
+                day = hw.day.strftime("%Y-%m-%d")  # как title
+                teacher_name = hw.lesson.teacher.name if hw.lesson and hw.lesson.teacher else "N/A"
+                is_corrected = error_map.get(hw.lesson.id, False)
+
+                grouped_data[day].append({
+                    "topic": hw.topic,
+                    "task": hw.tasks,
+                    "teacher_name": teacher_name,
+                    "note": hw.note if hasattr(hw, 'note') else "",
+                    "isCorrected": is_corrected
+                })
+
+            # Преобразуем в нужный формат
+            response_data = [{"title": day, "data": items} for day, items in grouped_data.items()]
+
+            return Response(response_data, status=status.HTTP_200_OK)
 
         except Exception as e:
             logger.error(f"Error fetching student homework: {e}")
