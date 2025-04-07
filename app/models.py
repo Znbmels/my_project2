@@ -42,9 +42,11 @@ class Lesson(models.Model):
 
 class Homework(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='homeworks')
+    teacher = models.ForeignKey(Teacher, on_delete=models.SET_NULL, null=True, blank=True)
     day = models.DateField()
     topic = models.CharField(max_length=255)
     tasks = models.JSONField()
+    note = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.topic} ({self.day})"

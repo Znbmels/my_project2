@@ -1,4 +1,6 @@
 import logging
+from collections import defaultdict
+from datetime import datetime, date
 from django.views import View
 from django.http import JsonResponse
 from django.contrib.auth import authenticate
@@ -229,27 +231,58 @@ class LessonListView(APIView):
 
 
 # View to list homeworks for a student
+
 class StudentHomeworkListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         try:
-            # Проверка, является ли пользователь студентом
             if not hasattr(request.user, "student"):
                 return Response({"error": "Only students can view their homework assignments"},
-                                 status=status.HTTP_403_FORBIDDEN)
+                                status=status.HTTP_403_FORBIDDEN)
 
-            student = request.user.student  # Получаем объект студента
-            homeworks = Homework.objects.filter(student=student)  # Фильтруем по студенту
-            logger.debug(f"Homeworks for student: {homeworks}")  # Логирование для отладки
+            student = request.user.student
+            today = date.today()
+            homeworks = Homework.objects.filter(student=student, day__gte=today).select_related('teacher')
+            error_logs = ErrorLog.objects.filter(student=student)
 
-            # Сериализуем и возвращаем домашние задания
-            serializer = HomeworkSerializer(homeworks, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            # Мапим ошибки по дню
+            error_map = {error.day: error.is_corrected for error in error_logs}
+
+            grouped_data = defaultdict(list)
+
+            for hw in homeworks:
+                day = hw.day.strftime("%Y-%m-%d")
+                teacher_name = hw.teacher.name if hw.teacher else "N/A"
+                is_corrected = error_map.get(hw.day, False)
+
+                # если tasks — это список
+                if isinstance(hw.tasks, list):
+                    for task in hw.tasks:
+                        grouped_data[day].append({
+                            "topic": hw.topic,
+                            "task": task,  # отдельное задание
+                            "teacher_name": teacher_name,
+                            "note": hw.note or "",
+                            "isCorrected": is_corrected
+                        })
+                else:
+                    grouped_data[day].append({
+                        "topic": hw.topic,
+                        "task": hw.tasks,
+                        "teacher_name": teacher_name,
+                        "note": hw.note or "",
+                        "isCorrected": is_corrected
+                    })
+
+            response_data = [{"title": day, "data": items} for day, items in grouped_data.items()]
+            return Response(response_data, status=status.HTTP_200_OK)
 
         except Exception as e:
+            import Traceback
             logger.error(f"Error fetching student homework: {e}")
             return Response({"error": "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 # View to list error logs for a student
 class StudentErrorListView(APIView):

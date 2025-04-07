@@ -34,7 +34,7 @@ class StudentSerializer(serializers.ModelSerializer):
 class HomeworkSerializer(serializers.ModelSerializer):
     class Meta:
         model = Homework
-        fields = ['id', 'student', 'day', 'topic', 'tasks']
+        fields = ['id', 'student', 'teacher', 'day', 'topic', 'tasks']
 
     def validate_student(self, value):
         if not Student.objects.filter(id=value).exists():

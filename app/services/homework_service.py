@@ -10,6 +10,7 @@ def create_homework(student_id, day, topic, tasks):
     # Создаём домашнее задание
     homework = Homework.objects.create(
         student=student,
+        teacher=teacher,
         day=day,
         topic=topic,
         tasks=tasks
