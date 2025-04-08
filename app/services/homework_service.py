@@ -1,7 +1,7 @@
 from app.models import Homework, Student
 from app.serializers import HomeworkSerializer
 
-def create_homework(student_id, day, topic, tasks):
+def create_homework(student_id, teacher, day, topic, tasks):
     try:
         student = Student.objects.get(id=student_id)
     except Student.DoesNotExist:
@@ -10,6 +10,7 @@ def create_homework(student_id, day, topic, tasks):
     # Создаём домашнее задание
     homework = Homework.objects.create(
         student=student,
+        teacher=teacher,
         day=day,
         topic=topic,
         tasks=tasks

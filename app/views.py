@@ -1,10 +1,12 @@
 import logging
+from collections import defaultdict
+from datetime import datetime, date
 from django.views import View
 from django.http import JsonResponse
 from django.contrib.auth import authenticate
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, generics, permissions
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.authentication import JWTAuthentication
@@ -18,6 +20,7 @@ from app.serializers import (
     LessonMinimalSerializer,
     VideoLessonSerializer,
     StudentSerializer,
+    HomeworkImageUploadSerializer,
 )
 from rest_framework import generics
 from rest_framework.exceptions import PermissionDenied
@@ -26,6 +29,8 @@ from app.services.homework_service import create_homework, get_homeworks_for_stu
 from app.services.error_service import create_error_log, get_errors_for_student
 from app.services.teacher_service import get_teacher_by_user
 from app.services.student_service import get_student_by_user
+from django.shortcuts import get_object_or_404
+from .models import HomeworkImage
 
 
 logger = logging.getLogger(__name__)
@@ -115,11 +120,13 @@ class HomeworkCreateView(APIView):
                                 status=status.HTTP_400_BAD_REQUEST)
 
             # Создаём ДЗ для каждого студента
+            teacher = request.user.teacher
             homeworks = []
             for student in students:
                 # Передаем данные в сервис для создания ДЗ
                 homework_data = create_homework(
                     student.id,
+                    teacher,
                     request.data.get("day"),
                     request.data.get("topic"),
                     request.data.get("tasks")
@@ -171,7 +178,7 @@ class ErrorLogCreateView(APIView):
             error_log.save()
 
             # Сериализуем данные
-            serializer = ErrorLogSerializer(error_log)
+            serializer = MistakeSerializer(error_log)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         except Exception as e:
             logger.error(f"Ошибка при создании записи об ошибке: {e}")
@@ -229,27 +236,121 @@ class LessonListView(APIView):
 
 
 # View to list homeworks for a student
+
 class StudentHomeworkListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         try:
-            # Проверка, является ли пользователь студентом
             if not hasattr(request.user, "student"):
                 return Response({"error": "Only students can view their homework assignments"},
-                                 status=status.HTTP_403_FORBIDDEN)
+                                status=status.HTTP_403_FORBIDDEN)
 
-            student = request.user.student  # Получаем объект студента
-            homeworks = Homework.objects.filter(student=student)  # Фильтруем по студенту
-            logger.debug(f"Homeworks for student: {homeworks}")  # Логирование для отладки
+            student = request.user.student
+            today = date.today()
+            homeworks = Homework.objects.filter(student=student, day__gte=today).select_related('teacher')
+            error_logs = ErrorLog.objects.filter(student=student)
 
-            # Сериализуем и возвращаем домашние задания
-            serializer = HomeworkSerializer(homeworks, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            # Мапим ошибки по дню
+            error_map = {error.day: error.is_corrected for error in error_logs}
+
+            grouped_data = defaultdict(list)
+
+            for hw in homeworks:
+                day = hw.day.strftime("%Y-%m-%d")
+                teacher_name = hw.teacher.name if hw.teacher else "N/A"
+                is_corrected = hw.is_corrected
+                is_done = hw.is_done
+
+                tasks = hw.tasks
+                if isinstance(tasks, dict):
+                    task_items = tasks.values()
+                elif isinstance(tasks, list):
+                    task_items = tasks
+                else:
+                    task_items = [tasks]
+
+                for task in task_items:
+                    grouped_data[day].append({
+                        "topic": hw.topic,
+                        "task": task,
+                        "teacher_name": teacher_name,
+                        "note": hw.note or "",
+                        "isCorrected": is_corrected,
+                        "is_Done" : is_done
+                    })
+
+            response_data = [{"title": day, "data": items} for day, items in grouped_data.items()]
+            return Response(response_data, status=status.HTTP_200_OK)
 
         except Exception as e:
+            import Traceback
             logger.error(f"Error fetching student homework: {e}")
             return Response({"error": "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def patch(self, request):
+        try:
+            if not hasattr(request.user, "student"):
+                return Response({"error": "Only students can update homework status"},
+                                status=status.HTTP_403_FORBIDDEN)
+
+            homework_id = request.data.get("homework_id")
+            is_done = request.data.get("is_done")
+
+            if homework_id is None or is_done is None:
+                return Response({"error": "Missing homework_id or is_done"}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Проверка, что задание принадлежит текущему студенту
+            homework = Homework.objects.get(id=homework_id, student=request.user.student)
+            homework.is_done = is_done
+            homework.save()
+
+            return Response({"message": "Homework status updated"}, status=status.HTTP_200_OK)
+
+        except Homework.DoesNotExist:
+            return Response({"error": "Homework not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Error updating homework status: {e}")
+            return Response({"error": "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class HomeworkImageUploadView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        serializer = HomeworkImageUploadSerializer(data=request.data)
+        if serializer.is_valid():
+            images = serializer.save()
+            response_data = [
+                {
+                    "id": img.id,
+                    "homework": img.homework_id,
+                    "image": request.build_absolute_uri(img.image.url),
+                    "uploaded_at": img.uploaded_at,
+                }
+                for img in images
+            ]
+            return Response(response_data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class HomeworkCorrectionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, homework_id):
+        # Только учитель может редактировать
+        if not hasattr(request.user, "teacher"):
+            return Response({"error": "Only teachers can correct homework."}, status=status.HTTP_403_FORBIDDEN)
+
+        homework = get_object_or_404(Homework, id=homework_id)
+
+        is_corrected = request.data.get("is_corrected")
+        if is_corrected is None:
+            return Response({"error": "Missing 'is_corrected' field"}, status=status.HTTP_400_BAD_REQUEST)
+
+        homework.is_corrected = is_corrected
+        homework.save()
+
+        return Response({"message": "Homework corrected status updated."}, status=status.HTTP_200_OK)
+
 
 # View to list error logs for a student
 class StudentErrorListView(APIView):

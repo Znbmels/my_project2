@@ -16,24 +16,22 @@ class Teacher(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='teacher')
     name = models.CharField(max_length=100)
 
+    def __str__(self):
+        return self.name
 
 class Student(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='student')
     name = models.CharField(max_length=100)
 
-
+    def __str__(self):
+        return self.name
 
 class Lesson(models.Model):
     name = models.CharField(max_length=255, default="Default Lesson Name")
     day_of_week = models.CharField(max_length=50)
     start_time = models.TimeField()
     end_time = models.TimeField()
-    teacher = models.ForeignKey(
-        'app.Teacher',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        default=1  # ID учителя по умолчанию
+    teacher = models.ForeignKey(Teacher, on_delete=models.SET_NULL, null=True, blank=True, default=1  # ID учителя по умолчанию
     )
 
     zoom_link = models.URLField()
@@ -42,12 +40,22 @@ class Lesson(models.Model):
 
 class Homework(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='homeworks')
+    lesson = models.ForeignKey( Lesson, on_delete=models.CASCADE, related_name='homeworks', null=True, blank=True)
+    teacher = models.ForeignKey(Teacher, on_delete=models.SET_NULL, null=True, blank=True)
     day = models.DateField()
     topic = models.CharField(max_length=255)
     tasks = models.JSONField()
+    note = models.TextField(blank=True, null=True)
+    is_corrected = models.BooleanField(default=False)
+    is_done = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.topic} ({self.day})"
+
+class HomeworkImage(models.Model):
+    homework = models.ForeignKey('Homework', on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='homework_images/')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
 
 class ErrorLog(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
@@ -57,7 +65,6 @@ class ErrorLog(models.Model):
 
     def __str__(self):
         return f"Error for {self.student.name} in {self.lesson.name}"
-
 
 class VideoLesson(models.Model):
     title = models.CharField(max_length=200)
