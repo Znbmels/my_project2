@@ -34,7 +34,7 @@ class StudentSerializer(serializers.ModelSerializer):
 class HomeworkSerializer(serializers.ModelSerializer):
     class Meta:
         model = Homework
-        fields = ['id', 'student', 'teacher', 'day', 'topic', 'tasks']
+        fields = ['id', 'student', 'teacher', 'day', 'topic', 'tasks', 'is_corrected', 'is_done']
 
     def validate_student(self, value):
         if not Student.objects.filter(id=value).exists():
@@ -61,7 +61,7 @@ class LessonSerializer(serializers.ModelSerializer):
         ]
 
     def get_homeworks(self, obj):
-        return HomeworkSerializer(obj.homework_set.all(), many=True).data
+        return HomeworkSerializer(obj.homeworks.all(), many=True).data
 
 
 class LessonMinimalSerializer(serializers.ModelSerializer):
