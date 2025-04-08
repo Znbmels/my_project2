@@ -26,8 +26,6 @@ class Student(models.Model):
     def __str__(self):
         return self.name
 
-
-
 class Lesson(models.Model):
     name = models.CharField(max_length=255, default="Default Lesson Name")
     day_of_week = models.CharField(max_length=50)
@@ -53,6 +51,11 @@ class Homework(models.Model):
 
     def __str__(self):
         return f"{self.topic} ({self.day})"
+
+class HomeworkImage(models.Model):
+    homework = models.ForeignKey('Homework', on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='homework_images/')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
 
 class ErrorLog(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE)

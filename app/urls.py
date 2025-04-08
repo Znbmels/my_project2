@@ -6,6 +6,7 @@ from .views import ErrorLogUpdateView
 from .views import ErrorLogUpdateView
 from .views import StudentListView
 from app.views import HomeworkCorrectionView
+from .views import HomeworkImageUploadView
 
 urlpatterns = [
     path('', views.ApiRootView.as_view(), name='api-root'),
@@ -18,6 +19,7 @@ urlpatterns = [
     path('errors/create/', views.ErrorLogCreateView.as_view(), name='error-create'),
     path('errors/list/', views.ErrorLogListView.as_view(), name='error-list'),
     path('student/homeworks/', views.StudentHomeworkListView.as_view(), name='student-homeworks'),
+    path('homeworks/upload-image/', HomeworkImageUploadView.as_view(), name='homework-upload-image'),
     path("homeworks/<int:homework_id>/correct/", HomeworkCorrectionView.as_view()),
     path('student/errors/', views.StudentErrorListView.as_view(), name='student-errors'),
     path('student/lessons/', views.StudentLessonsAPIView.as_view(), name='student-lessons'),

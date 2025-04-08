@@ -6,7 +6,7 @@ from django.http import JsonResponse
 from django.contrib.auth import authenticate
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, generics, permissions
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.authentication import JWTAuthentication
@@ -20,6 +20,7 @@ from app.serializers import (
     LessonMinimalSerializer,
     VideoLessonSerializer,
     StudentSerializer,
+    HomeworkImageUploadSerializer,
 )
 from rest_framework import generics
 from rest_framework.exceptions import PermissionDenied
@@ -29,6 +30,7 @@ from app.services.error_service import create_error_log, get_errors_for_student
 from app.services.teacher_service import get_teacher_by_user
 from app.services.student_service import get_student_by_user
 from django.shortcuts import get_object_or_404
+from .models import HomeworkImage
 
 
 logger = logging.getLogger(__name__)
@@ -311,6 +313,24 @@ class StudentHomeworkListView(APIView):
             logger.error(f"Error updating homework status: {e}")
             return Response({"error": "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+class HomeworkImageUploadView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        serializer = HomeworkImageUploadSerializer(data=request.data)
+        if serializer.is_valid():
+            images = serializer.save()
+            response_data = [
+                {
+                    "id": img.id,
+                    "homework": img.homework_id,
+                    "image": request.build_absolute_uri(img.image.url),
+                    "uploaded_at": img.uploaded_at,
+                }
+                for img in images
+            ]
+            return Response(response_data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class HomeworkCorrectionView(APIView):
     permission_classes = [IsAuthenticated]
