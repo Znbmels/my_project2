@@ -248,7 +248,9 @@ class StudentHomeworkListView(APIView):
 
             student = request.user.student
             today = date.today()
-            homeworks = Homework.objects.filter(student=student, day__gte=today).select_related('teacher')
+            homeworks = Homework.objects.filter(student=student,
+                                                day__gte=today
+                                                ).select_related('teacher')
             error_logs = ErrorLog.objects.filter(student=student)
 
             # Мапим ошибки по дню
@@ -272,6 +274,7 @@ class StudentHomeworkListView(APIView):
 
                 for task in task_items:
                     grouped_data[day].append({
+                        "id": hw.id,
                         "topic": hw.topic,
                         "task": task,
                         "teacher_name": teacher_name,
@@ -280,11 +283,11 @@ class StudentHomeworkListView(APIView):
                         "is_Done" : is_done
                     })
 
-            response_data = [{"title": day, "data": items} for day, items in grouped_data.items()]
+            response_data = [{"title": day, "data": items} for day,
+            items in grouped_data.items()]
             return Response(response_data, status=status.HTTP_200_OK)
 
         except Exception as e:
-            import Traceback
             logger.error(f"Error fetching student homework: {e}")
             return Response({"error": "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
