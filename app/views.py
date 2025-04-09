@@ -31,6 +31,7 @@ from app.services.teacher_service import get_teacher_by_user
 from app.services.student_service import get_student_by_user
 from django.shortcuts import get_object_or_404
 from .models import HomeworkImage
+import traceback
 
 
 logger = logging.getLogger(__name__)
@@ -380,11 +381,20 @@ class StudentLessonsAPIView(APIView):
                     status=status.HTTP_403_FORBIDDEN
                 )
 
-            # Получаем связанные с этим студентом уроки
             student = request.user.student
-            today = date.today()
-            lessons = Lesson.objects.filter(students=student, day__gte=today)
-            logger.debug(f"Lessons for student {student.id}: {lessons}")
+            lessons = Lesson.objects.filter(students=student)
+            # Фильтрация по дате, если указана
+            date_str = request.query_params.get('date')
+            if date_str:
+                try:
+                    filter_date = date.fromisoformat(date_str)
+                    lessons = lessons.filter(day=filter_date)
+                except ValueError:
+                    return Response({"error": "Invalid date format. Use YYYY-MM-DD."},
+                                    status=status.HTTP_400_BAD_REQUEST)
+            else:
+                today = date.today()
+                lessons = lessons.filter(day__gte=today)
 
             #  минимальный сериализатор для вывода
             serializer = LessonMinimalSerializer(lessons, many=True)
@@ -392,6 +402,7 @@ class StudentLessonsAPIView(APIView):
 
         except Exception as e:
             logger.error(f"Error fetching lessons for student: {e}")
+            logger.error(traceback.format_exc())
             return Response({"error": "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
