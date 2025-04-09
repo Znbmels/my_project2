@@ -251,10 +251,8 @@ class StudentHomeworkListView(APIView):
             homeworks = Homework.objects.filter(student=student,
                                                 day__gte=today
                                                 ).select_related('teacher')
-            error_logs = ErrorLog.objects.filter(student=student)
 
             grouped_data = defaultdict(list)
-
             for hw in homeworks:
                 day = hw.day.strftime("%Y-%m-%d")
                 teacher_name = hw.teacher.name if hw.teacher else "N/A"
