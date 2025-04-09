@@ -327,25 +327,6 @@ class StudentHomeworkListView(APIView):
             return Response(response_data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-# class HomeworkImageUploadView(APIView):
-#     permission_classes = [permissions.IsAuthenticated]
-#
-#     def post(self, request, *args, **kwargs):
-#         serializer = HomeworkImageUploadSerializer(data=request.data)
-#         if serializer.is_valid():
-#             images = serializer.save()
-#             response_data = [
-#                 {
-#                     "id": img.id,
-#                     "homework": img.homework_id,
-#                     "image": request.build_absolute_uri(img.image.url),
-#                     "uploaded_at": img.uploaded_at,
-#                 }
-#                 for img in images
-#             ]
-#             return Response(response_data, status=status.HTTP_201_CREATED)
-#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 class HomeworkCorrectionView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -401,7 +382,8 @@ class StudentLessonsAPIView(APIView):
 
             # Получаем связанные с этим студентом уроки
             student = request.user.student
-            lessons = Lesson.objects.filter(students=student)
+            today = date.today()
+            lessons = Lesson.objects.filter(students=student, day__gte=today)
 
             logger.debug(f"Lessons for student {student.id}: {lessons}")
 

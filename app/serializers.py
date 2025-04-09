@@ -91,7 +91,7 @@ class LessonSerializer(serializers.ModelSerializer):
         model = Lesson
         fields = [
             'id', 'day_of_week', 'start_time', 'end_time', 'zoom_link',
-            'students', 'homeworks', 'errors'
+            'students', 'homeworks', 'errors', 'description'
         ]
 
     def get_homeworks(self, obj):
