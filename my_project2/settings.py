@@ -8,8 +8,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'your-secret-key-here'
 
 ALLOWED_HOSTS = [
-    # '127.0.0.1',
-    # 'localhost',
+    '127.0.0.1',
+    'localhost',
     'tahfiz.halalguide.me',
     '37.27.216.212',
     'django_app',

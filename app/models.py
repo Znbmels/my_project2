@@ -33,7 +33,8 @@ class Lesson(models.Model):
     end_time = models.TimeField()
     teacher = models.ForeignKey(Teacher, on_delete=models.SET_NULL, null=True, blank=True, default=1  # ID учителя по умолчанию
     )
-    desription = models.TextField(blank=True, null=True)
+    day = models.DateField(null=True, blank=True)
+    description = models.TextField(blank=True, null=True)
     zoom_link = models.URLField()
     students = models.ManyToManyField(Student, related_name='lessons')
 

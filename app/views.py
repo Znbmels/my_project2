@@ -384,7 +384,6 @@ class StudentLessonsAPIView(APIView):
             student = request.user.student
             today = date.today()
             lessons = Lesson.objects.filter(students=student, day__gte=today)
-
             logger.debug(f"Lessons for student {student.id}: {lessons}")
 
             #  минимальный сериализатор для вывода
