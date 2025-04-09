@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from app.models import Lesson, Homework, ErrorLog, Student, VideoLesson
+from app.models import Lesson, Homework, ErrorLog, Student, VideoLesson, HomeworkImage
 from django.contrib.auth import get_user_model
 
 User = get_user_model()  # Используем вашу кастомную модель
@@ -30,24 +30,58 @@ class StudentSerializer(serializers.ModelSerializer):
         model = Student
         fields = ['id', 'user', 'name']
 
+class HomeworkImageUploadSerializer(serializers.Serializer): #Сериализатор для POST-запроса
+    homework = serializers.IntegerField()
+    images = serializers.ListField(
+        child=serializers.ImageField(), write_only=True
+    )
+
+    def create(self, validated_data):
+        homework_id = validated_data['homework']
+        images = validated_data['images']
+
+        instances = [
+            HomeworkImage(homework_id=homework_id, image=image)
+            for image in images
+        ]
+        # bulk_create возвращает список, мы это сохраняем в self.instance
+        self.instance = HomeworkImage.objects.bulk_create(instances)
+        return self.instance
+
+    def to_representation(self, instance):
+        # instance — список, сериализуем вручную
+        return [
+            {
+                "id": img.id,
+                "homework": img.homework_id,
+                "image": img.image.url,
+                "uploaded_at": img.uploaded_at,
+            }
+            for img in instance
+        ]
+
+class HomeworkImageSerializer(serializers.ModelSerializer): #Сериализатор для GET-запроса
+    class Meta:
+        model = HomeworkImage
+        fields = ['id', 'homework', 'image', 'uploaded_at']
+
 
 class HomeworkSerializer(serializers.ModelSerializer):
+    images = HomeworkImageSerializer(many=True, read_only=True)
+
     class Meta:
         model = Homework
-        fields = ['id', 'student', 'day', 'topic', 'tasks']
+        fields = ['id', 'student', 'teacher', 'day', 'topic', 'tasks', 'is_corrected', 'is_done', 'images']
 
     def validate_student(self, value):
         if not Student.objects.filter(id=value).exists():
             raise serializers.ValidationError("Student not found.")
         return value
 
-
 class ErrorLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = ErrorLog
         fields = ['id', 'student', 'lesson', 'description', 'is_corrected']
-
-
 
 class LessonSerializer(serializers.ModelSerializer):
     homeworks = serializers.SerializerMethodField()
@@ -61,7 +95,7 @@ class LessonSerializer(serializers.ModelSerializer):
         ]
 
     def get_homeworks(self, obj):
-        return HomeworkSerializer(obj.homework_set.all(), many=True).data
+        return HomeworkSerializer(obj.homeworks.all(), many=True).data
 
 
 class LessonMinimalSerializer(serializers.ModelSerializer):
