@@ -53,7 +53,6 @@ class HomeworkAdmin(admin.ModelAdmin):
     list_filter = ('student', 'day')
     search_fields = ('topic',)
 
-
 @admin.register(ErrorLog)
 class ErrorLogAdmin(admin.ModelAdmin):
     list_display = ('student', 'lesson', 'description')
