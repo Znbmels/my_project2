@@ -103,7 +103,7 @@ class LessonMinimalSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Lesson
-        fields = ['id', 'day_of_week', 'start_time', 'end_time', 'zoom_link', 'teacher_name']
+        fields = ['id', 'day_of_week', 'start_time', 'end_time', 'zoom_link', 'teacher_name', 'description']
 
 
 class VideoLessonSerializer(serializers.ModelSerializer):
