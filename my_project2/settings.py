@@ -10,9 +10,9 @@ SECRET_KEY = 'your-secret-key-here'
 ALLOWED_HOSTS = [
     # '127.0.0.1',
     # 'localhost',
-    # 'tahfiz.halalguide.me',
-    # '37.27.216.212',
-    # 'django_app',
+    'tahfiz.halalguide.me',
+    '37.27.216.212',
+    'django_app',
 ]
 
 CSRF_TRUSTED_ORIGINS = [
