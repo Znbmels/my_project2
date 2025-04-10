@@ -54,9 +54,9 @@ class HomeworkAdmin(admin.ModelAdmin):
     search_fields = ('topic',)
 
 @admin.register(Mistake)
-class ErrorLogAdmin(admin.ModelAdmin):
-    list_display = ('student', 'lesson', 'description')
-    list_filter = ('student', 'lesson')
+class MistakeAdmin(admin.ModelAdmin):
+    list_display = ('student', 'homework', 'description')
+    list_filter = ('student', 'homework')
     search_fields = ('description',)
 
 @admin.register(VideoLesson)

@@ -196,7 +196,7 @@ class MistakeCreateView(APIView):
             )
 
             # Устанавливаем is_corrected в False по умолчанию
-            mistake_log.is_corrected = False
+            mistake_log.is_fixed = False
             mistake_log.save()
 
             # Сериализуем данные
@@ -273,7 +273,6 @@ class TeacherLessonListView(APIView):
 
 
 # View to list homeworks for a student
-
 class StudentHomeworkListView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -364,6 +363,7 @@ class StudentHomeworkListView(APIView):
             return Response(response_data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 # View to list mistake logs for a student
 class StudentMistakeListView(APIView):
     permission_classes = [IsAuthenticated]
@@ -422,7 +422,6 @@ class StudentLessonsAPIView(APIView):
             return Response({"error": "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-
 class MistakeUpdateView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -445,8 +444,8 @@ class MistakeUpdateView(APIView):
             except Mistake.DoesNotExist:
                 return Response({"error": "mistake log not found"}, status=status.HTTP_404_NOT_FOUND)
 
-            # Обновляем поле is_corrected
-            mistake_log.is_corrected = request.data.get("is_corrected", mistake_log.is_corrected)
+            # Обновляем поле is_fixed
+            mistake_log.is_fixed = request.data.get("is_fixed", mistake_log.is_fixed)
             mistake_log.save()
 
             serializer = MistakeSerializer(mistake_log)
@@ -468,6 +467,7 @@ class VideoLessonListCreateView(generics.ListCreateAPIView):
             raise PermissionDenied("Only teachers can create video lessons.")
         # Сохраняем видеоурок с привязкой к текущему пользователю
         serializer.save(creator=self.request.user)
+
 
 class VideoLessonDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = VideoLesson.objects.all()

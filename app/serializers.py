@@ -76,16 +76,6 @@ class HomeworkSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Student not found.")
         return value
 
-class MistakeSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Mistake
-        fields = ['id', 'student', 'lesson', 'description', 'is_corrected']
-
-class MistakeImageSerializer(serializers.ModelSerializer): #Сериализатор для GET-запроса
-    class Meta:
-        model = MistakeImage
-        fields = ['id', 'mistake', 'image', 'uploaded_at']
-
 class MistakeImageUploadSerializer(serializers.Serializer): #Сериализатор для POST-запроса
     mistake = serializers.IntegerField()
     images = serializers.ListField(
@@ -115,6 +105,22 @@ class MistakeImageUploadSerializer(serializers.Serializer): #Сериализа�
             }
             for img in instance
         ]
+
+class MistakeImageSerializer(serializers.ModelSerializer): #Сериализатор для GET-запроса
+    class Meta:
+        model = MistakeImage
+        fields = ['id', 'mistake', 'image', 'uploaded_at']
+
+class MistakeSerializer(serializers.ModelSerializer):
+    images = MistakeImageSerializer(many=True, read_only=True)
+    class Meta:
+        model = Mistake
+        fields = ['id', 'student', 'lesson', 'description', 'is_fixed', 'images']
+
+    def validate_student(self, value):
+        if not Student.objects.filter(id=value).exists():
+            raise serializers.ValidationError("Student not found.")
+        return value
 
 class LessonSerializer(serializers.ModelSerializer):
     homeworks = serializers.SerializerMethodField()

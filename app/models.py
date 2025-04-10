@@ -37,6 +37,9 @@ class Lesson(models.Model):
     zoom_link = models.URLField()
     students = models.ManyToManyField(Student, related_name='lessons')
 
+    def __str__(self):
+        return self.name
+
 class Homework(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='homeworks')
     lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name='homeworks', null=True, blank=True)
@@ -64,12 +67,13 @@ class HomeworkImage(models.Model):
 
 class Mistake(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
-    lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name='mistakelog_set')  # related_name
+    homework = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name='mistakes_for_homework', null=True,
+                                 blank=True)
     description = models.TextField()
-    is_corrected = models.BooleanField(default=False)  # Новое поле
+    is_fixed = models.BooleanField(default=False)  # Новое поле
 
     def __str__(self):
-        return f"Mistake for {self.student.name} in {self.lesson.name}"
+        return f"{self.student.name} in {self.homework.name}"
 
 class MistakeImage(models.Model):
     mistake = models.ForeignKey('Mistake', on_delete=models.CASCADE, related_name='images')
