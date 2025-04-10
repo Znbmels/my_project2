@@ -11,7 +11,6 @@ class User(AbstractUser):
 
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='student')
 
-
 class Teacher(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='teacher')
     name = models.CharField(max_length=100)
@@ -63,14 +62,19 @@ class HomeworkImage(models.Model):
     image = models.ImageField(upload_to='homework_images/')
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
-class ErrorLog(models.Model):
+class Mistake(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
-    lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name='errorlog_set')  # related_name
+    lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name='mistakelog_set')  # related_name
     description = models.TextField()
     is_corrected = models.BooleanField(default=False)  # Новое поле
 
     def __str__(self):
-        return f"Error for {self.student.name} in {self.lesson.name}"
+        return f"Mistake for {self.student.name} in {self.lesson.name}"
+
+class MistakeImage(models.Model):
+    mistake = models.ForeignKey('Mistake', on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='mistake_images/')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
 
 class VideoLesson(models.Model):
     title = models.CharField(max_length=200)

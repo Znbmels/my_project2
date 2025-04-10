@@ -2,8 +2,7 @@
 
 from django.urls import path
 from . import views
-from .views import ErrorLogUpdateView
-from .views import ErrorLogUpdateView
+from .views import MistakeUpdateView
 from .views import StudentListView
 
 urlpatterns = [
@@ -14,12 +13,12 @@ urlpatterns = [
     path('teacher/lessons/list/', views.TeacherLessonListView.as_view(), name='lesson-list'),
     path('teacher/homeworks/create/', views.HomeworkCreateView.as_view(), name='homework-create'),
     path('teacher/homeworks/list/', views.HomeworkListView.as_view(), name='homework-list'),
-    path('errors/create/', views.ErrorLogCreateView.as_view(), name='error-create'),
-    path('errors/list/', views.ErrorLogListView.as_view(), name='error-list'),
+    path('mistakes/create/', views.MistakeCreateView.as_view(), name='mistake-create'),
+    path('mistakes/list/', views.MistakeListView.as_view(), name='mistake-list'),
     path('student/homeworks/', views.StudentHomeworkListView.as_view(), name='student-homeworks'),
-    path('student/errors/', views.StudentErrorListView.as_view(), name='student-errors'),
+    path('student/mistakes/', views.StudentMistakeListView.as_view(), name='student-mistakes'),
     path('student/lessons/', views.StudentLessonsAPIView.as_view(), name='student-lessons'),
-    path('errors/update/', ErrorLogUpdateView.as_view(), name='update-error-log'),
+    path('mistakes/update/', MistakeUpdateView.as_view(), name='update-mistake-log'),
     path('videos/', views.VideoLessonListCreateView.as_view(), name='video-lesson-list-create'),
     path('videos/<int:pk>/', views.VideoLessonDetailView.as_view(), name='video-lesson-detail'),
     path('student/', views.StudentListView.as_view(), name='student-list'),

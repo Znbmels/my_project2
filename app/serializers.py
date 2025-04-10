@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from app.models import Lesson, Homework, ErrorLog, Student, VideoLesson, HomeworkImage
+from app.models import Lesson, Homework, Mistake, Student, VideoLesson, HomeworkImage, MistakeImage
 from django.contrib.auth import get_user_model
 
 User = get_user_model()  # Используем вашу кастомную модель
@@ -21,7 +21,6 @@ class UserSerializer(serializers.ModelSerializer):
         user.set_password(validated_data['password'])  # Хэширование пароля
         user.save()
         return user
-
 
 class StudentSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
@@ -65,7 +64,6 @@ class HomeworkImageSerializer(serializers.ModelSerializer): #Сериализа�
         model = HomeworkImage
         fields = ['id', 'homework', 'image', 'uploaded_at']
 
-
 class HomeworkSerializer(serializers.ModelSerializer):
     images = HomeworkImageSerializer(many=True, read_only=True)
 
@@ -78,14 +76,49 @@ class HomeworkSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Student not found.")
         return value
 
-class ErrorLogSerializer(serializers.ModelSerializer):
+class MistakeSerializer(serializers.ModelSerializer):
     class Meta:
-        model = ErrorLog
+        model = Mistake
         fields = ['id', 'student', 'lesson', 'description', 'is_corrected']
+
+class MistakeImageSerializer(serializers.ModelSerializer): #Сериализатор для GET-запроса
+    class Meta:
+        model = MistakeImage
+        fields = ['id', 'mistake', 'image', 'uploaded_at']
+
+class MistakeImageUploadSerializer(serializers.Serializer): #Сериализатор для POST-запроса
+    mistake = serializers.IntegerField()
+    images = serializers.ListField(
+        child=serializers.ImageField(), write_only=True
+    )
+
+    def create(self, validated_data):
+        mistake_id = validated_data['mistake']
+        images = validated_data['images']
+
+        instances = [
+            MistakeImage(mistake_id=mistake_id, image=image)
+            for image in images
+        ]
+        # bulk_create возвращает список, мы это сохраняем в self.instance
+        self.instance = MistakeImage.objects.bulk_create(instances)
+        return self.instance
+
+    def to_representation(self, instance):
+        # instance — список, сериализуем вручную
+        return [
+            {
+                "id": img.id,
+                "mistake": img.mistake_id,
+                "image": img.image.url,
+                "uploaded_at": img.uploaded_at,
+            }
+            for img in instance
+        ]
 
 class LessonSerializer(serializers.ModelSerializer):
     homeworks = serializers.SerializerMethodField()
-    errors = ErrorLogSerializer(many=True, read_only=True, source='errorlog_set')
+    errors = MistakeSerializer(many=True, read_only=True, source='mistake_set')
 
     class Meta:
         model = Lesson
@@ -97,14 +130,12 @@ class LessonSerializer(serializers.ModelSerializer):
     def get_homeworks(self, obj):
         return HomeworkSerializer(obj.homeworks.all(), many=True).data
 
-
 class LessonMinimalSerializer(serializers.ModelSerializer):
     teacher_name = serializers.CharField(source='teacher.name', read_only=True)  # Имя учителя
 
     class Meta:
         model = Lesson
         fields = ['id', 'day_of_week', 'start_time', 'end_time', 'zoom_link', 'teacher_name', 'description']
-
 
 class VideoLessonSerializer(serializers.ModelSerializer):
     creator = serializers.StringRelatedField(read_only=True)  # или просто поля, если вы хотите выводить имя

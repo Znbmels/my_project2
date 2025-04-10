@@ -10,23 +10,24 @@ from rest_framework import status, generics, permissions
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from app.models import User, Homework, ErrorLog, Lesson, Student, VideoLesson
+from app.models import User, Homework, Mistake, Lesson, Student, VideoLesson
 from app.services.utils import get_teacher_by_user
 from app.serializers import (
     UserSerializer,
     LessonSerializer,
     HomeworkSerializer,
-    ErrorLogSerializer,
+    # MistakeSerializer,
     LessonMinimalSerializer,
     VideoLessonSerializer,
     StudentSerializer,
     HomeworkImageUploadSerializer,
+    MistakeImageSerializer,
 )
 from rest_framework import generics
 from rest_framework.exceptions import PermissionDenied
 from app.services.lesson_service import create_lesson, get_lessons_by_teacher
 from app.services.homework_service import create_homework, get_homeworks_for_student
-from app.services.error_service import create_error_log, get_errors_for_student
+from app.services.error_service import create_mistake, get_mistakes_for_student
 from app.services.teacher_service import get_teacher_by_user
 from app.services.student_service import get_student_by_user
 from django.shortcuts import get_object_or_404
@@ -47,7 +48,7 @@ class ApiRootView(View):
                 'login': '/login/',
                 'lessons': '/lessons/',
                 'homeworks': '/homeworks/',
-                'errors': '/errors/',
+                'mistakes': '/mistakes/',
             }
         }
         return JsonResponse(data)
@@ -60,7 +61,7 @@ class RegisterView(APIView):
         if serializer.is_valid():
             serializer.save()  # Сохранение пользователя с хэшированием пароля
             return Response({"message": "User created successfully"}, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.mistakes, status=status.HTTP_400_BAD_REQUEST)
 
 
 # View for user login with JWT token generation
@@ -163,22 +164,22 @@ class HomeworkCreateView(APIView):
             return Response({"error": "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-# View to retrieve all error logs
-class ErrorLogListView(APIView):
+# View to retrieve all mistake logs
+class MistakeListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         try:
-            errors = ErrorLog.objects.select_related("student", "lesson").all()  # Fetch related data
-            serializer = ErrorLogSerializer(errors, many=True)
+            mistakes = Mistake.objects.select_related("student", "lesson").all()  # Fetch related data
+            serializer = MistakeSerializer(mistakes, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Exception as e:
             logger.error(f"Error fetching error logs: {e}")
             return Response({"error": "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-# View to create a new error log (teachers only)
-class ErrorLogCreateView(APIView):
+# View to create a new mistake log (teachers only)
+class MistakeCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -188,18 +189,18 @@ class ErrorLogCreateView(APIView):
             description = request.data.get("description")
 
             # Создаем запись об ошибке через сервис
-            error_log = create_error_log(
+            mistake_log = create_mistake_log(
                 student_id=student_id,
                 lesson_id=lesson_id,
                 description=description
             )
 
             # Устанавливаем is_corrected в False по умолчанию
-            error_log.is_corrected = False
-            error_log.save()
+            mistake_log.is_corrected = False
+            mistake_log.save()
 
             # Сериализуем данные
-            serializer = MistakeSerializer(error_log)
+            serializer = MistakeSerializer(mistake_log)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         except Exception as e:
             logger.error(f"Ошибка при создании записи об ошибке: {e}")
@@ -363,8 +364,8 @@ class StudentHomeworkListView(APIView):
             return Response(response_data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-# View to list error logs for a student
-class StudentErrorListView(APIView):
+# View to list mistake logs for a student
+class StudentMistakeListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -374,8 +375,8 @@ class StudentErrorListView(APIView):
                                 status=status.HTTP_403_FORBIDDEN)
 
             student = request.user.student  # Fetch student object
-            errors = ErrorLog.objects.filter(student=student)  # Использу объект Student
-            serializer = ErrorLogSerializer(errors, many=True)
+            mistakes = Mistake.objects.filter(student=student)  # Использу объект Student
+            serializer = MistakeSerializer(mistakes, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         except Exception as e:
@@ -422,7 +423,7 @@ class StudentLessonsAPIView(APIView):
 
 
 
-class ErrorLogUpdateView(APIView):
+class MistakeUpdateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def patch(self, request):
@@ -434,21 +435,21 @@ class ErrorLogUpdateView(APIView):
                 return Response({"error": "Only teachers can update error logs"}, status=status.HTTP_403_FORBIDDEN)
 
             # Получаем ID ошибки из запроса
-            error_log_id = request.data.get("error_log_id")
-            if not error_log_id:
-                return Response({"error": "error_log_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+            mistake_log_id = request.data.get("mistake_log_id")
+            if not mistake_log_id:
+                return Response({"error": "mistake_log_id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
             # Получаем объект ошибки
             try:
-                error_log = ErrorLog.objects.get(id=error_log_id)
-            except ErrorLog.DoesNotExist:
-                return Response({"error": "Error log not found"}, status=status.HTTP_404_NOT_FOUND)
+                mistake_log = Mistake.objects.get(id=mistake_log_id)
+            except Mistake.DoesNotExist:
+                return Response({"error": "mistake log not found"}, status=status.HTTP_404_NOT_FOUND)
 
             # Обновляем поле is_corrected
-            error_log.is_corrected = request.data.get("is_corrected", error_log.is_corrected)
-            error_log.save()
+            mistake_log.is_corrected = request.data.get("is_corrected", mistake_log.is_corrected)
+            mistake_log.save()
 
-            serializer = ErrorLogSerializer(error_log)
+            serializer = MistakeSerializer(mistake_log)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         except Exception as e:
