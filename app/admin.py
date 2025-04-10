@@ -42,7 +42,7 @@ class StudentAdmin(admin.ModelAdmin):
 
 @admin.register(Lesson)
 class LessonAdmin(admin.ModelAdmin):
-    list_display = ('day_of_week', 'start_time', 'end_time', 'teacher', 'zoom_link', 'description')
+    list_display = ('name', 'day_of_week', 'start_time', 'end_time', 'teacher', 'zoom_link',)
     list_filter = ('day_of_week', 'teacher')
     search_fields = ('teacher__name', 'zoom_link')
 

@@ -86,6 +86,9 @@ class HomeworkListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        if not hasattr(request.user, "teacher"):
+            return Response({"error": "Only teachers can correct homework."}, status=status.HTTP_403_FORBIDDEN)
+
         try:
             # Исправление запроса
             homeworks = Homework.objects.select_related('student')  # Используйте 'student' вместо 'lesson'
@@ -96,6 +99,23 @@ class HomeworkListView(APIView):
             logger.error(f"Error fetching homeworks: {e}")
             return Response({"error": "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    def patch(self, request):
+        # Только учитель может редактировать
+        if not hasattr(request.user, "teacher"):
+            return Response({"error": "Only teachers can correct homework."}, status=status.HTTP_403_FORBIDDEN)
+
+        homework_id = request.data.get("homework_id")
+        if not homework_id:
+            return Response({"error": "homework_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        is_corrected = request.data.get("is_corrected")
+        if is_corrected is None:
+            return Response({"error": "Missing 'is_corrected' field"}, status=status.HTTP_400_BAD_REQUEST)
+        homework = get_object_or_404(Homework, id=homework_id)
+        homework.is_corrected = is_corrected
+        homework.save()
+
+        return Response({"message": "Homework corrected status updated."}, status=status.HTTP_200_OK)
 
 # View to create a new homework assignment (teachers only)
 class HomeworkCreateView(APIView):
@@ -219,7 +239,7 @@ class LessonCreateView(APIView):
 
 
 # View to list lessons for a teacher
-class LessonListView(APIView):
+class TeacherLessonListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -227,8 +247,23 @@ class LessonListView(APIView):
             if not hasattr(request.user, "teacher"):
                 return Response({"error": "Only teachers can view their lessons"},
                                 status=status.HTTP_403_FORBIDDEN)
+
             teacher = get_teacher_by_user(request.user)  # Fetch teacher object
             lessons = get_lessons_by_teacher(teacher)  # Fetch lessons for teacher
+            # Фильтрация уроков по дате
+            date_str = request.query_params.get('date')
+            if date_str:
+                try:
+                    filter_date = date.fromisoformat(date_str)
+                    lessons = lessons.filter(day=filter_date)
+                except ValueError:
+                    return Response({"error": "Invalid date format. Use YYYY-MM-DD."},
+                                    status=status.HTTP_400_BAD_REQUEST)
+            else:
+                today = date.today()
+                lessons = lessons.filter(day__gte=today)
+
+
             serializer = LessonSerializer(lessons, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Exception as e:
@@ -327,26 +362,6 @@ class StudentHomeworkListView(APIView):
             ]
             return Response(response_data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-class HomeworkCorrectionView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def patch(self, request, homework_id):
-        # Только учитель может редактировать
-        if not hasattr(request.user, "teacher"):
-            return Response({"error": "Only teachers can correct homework."}, status=status.HTTP_403_FORBIDDEN)
-
-        homework = get_object_or_404(Homework, id=homework_id)
-
-        is_corrected = request.data.get("is_corrected")
-        if is_corrected is None:
-            return Response({"error": "Missing 'is_corrected' field"}, status=status.HTTP_400_BAD_REQUEST)
-
-        homework.is_corrected = is_corrected
-        homework.save()
-
-        return Response({"message": "Homework corrected status updated."}, status=status.HTTP_200_OK)
-
 
 # View to list error logs for a student
 class StudentErrorListView(APIView):

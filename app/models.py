@@ -38,17 +38,22 @@ class Lesson(models.Model):
     zoom_link = models.URLField()
     students = models.ManyToManyField(Student, related_name='lessons')
 
-
 class Homework(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='homeworks')
-    lesson = models.ForeignKey( Lesson, on_delete=models.CASCADE, related_name='homeworks', null=True, blank=True)
+    lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name='homeworks', null=True, blank=True)
     teacher = models.ForeignKey(Teacher, on_delete=models.SET_NULL, null=True, blank=True)
     day = models.DateField()
-    topic = models.CharField(max_length=255)
+    topic = models.CharField(max_length=255, blank=True, null=True)  # topic как строка
     tasks = models.JSONField()
     note = models.TextField(blank=True, null=True)
     is_corrected = models.BooleanField(default=False)
     is_done = models.BooleanField(default=False)
+
+    def save(self, *args, **kwargs):
+        # Если topic не задан, заполняем его названием урока
+        if self.lesson and not self.topic:
+            self.topic = self.lesson.name
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.topic} ({self.day})"

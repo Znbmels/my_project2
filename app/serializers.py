@@ -90,7 +90,7 @@ class LessonSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lesson
         fields = [
-            'id', 'day_of_week', 'start_time', 'end_time', 'zoom_link',
+            'id', 'day_of_week', 'start_time','day', 'end_time', 'zoom_link',
             'students', 'homeworks', 'errors', 'description'
         ]
 
