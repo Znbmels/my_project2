@@ -1,19 +1,17 @@
 # app/services/error_service.py
 from app.models import Mistake, Student, Lesson  # Добавьте импорт Lesson
 
-def create_mistake(student_id, lesson_id, description):
-    """
-    Создает запись об ошибке для указанного студента и урока.
-    """
+def create_mistake(student_id, homework_id, description):
+    # Создает запись об ошибке для указанного студента и ДЗ (на самом деле lesson).
     try:
         student = Student.objects.get(id=student_id)
-        lesson = Lesson.objects.get(id=lesson_id)  # Теперь Lesson доступен
-        Mistake = Mistake.objects.create(
+        homework = Lesson.objects.get(id=homework_id)
+        mistake = Mistake.objects.create(
             student=student,
-            lesson=lesson,
+            homework=homework,
             description=description
         )
-        return Mistake
+        return mistake
     except Student.DoesNotExist:
         raise ValueError("Student with the given ID does not exist.")
     except Lesson.DoesNotExist:

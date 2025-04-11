@@ -16,7 +16,7 @@ from app.serializers import (
     UserSerializer,
     LessonSerializer,
     HomeworkSerializer,
-    # MistakeSerializer,
+    MistakeSerializer,
     LessonMinimalSerializer,
     VideoLessonSerializer,
     StudentSerializer,
@@ -172,7 +172,7 @@ class MistakeListView(APIView):
 
     def get(self, request):
         try:
-            mistakes = Mistake.objects.select_related("student", "lesson").all()  # Fetch related data
+            mistakes = Mistake.objects.select_related("student").all()  # Fetch related data
             serializer = MistakeSerializer(mistakes, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Exception as e:
@@ -187,13 +187,13 @@ class MistakeCreateView(APIView):
     def post(self, request):
         try:
             student_id = request.data.get("student")
-            lesson_id = request.data.get("lesson")
+            homework_id = request.data.get("homework")
             description = request.data.get("description")
 
             # Создаем запись об ошибке через сервис
-            mistake_log = create_mistake_log(
+            mistake_log = create_mistake(
                 student_id=student_id,
-                lesson_id=lesson_id,
+                homework_id=homework_id,
                 description=description
             )
 

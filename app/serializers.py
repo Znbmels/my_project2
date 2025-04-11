@@ -119,7 +119,7 @@ class MistakeSerializer(serializers.ModelSerializer):
     images = MistakeImageSerializer(many=True, read_only=True)
     class Meta:
         model = Mistake
-        fields = ['id', 'student', 'lesson', 'description', 'is_fixed', 'images']
+        fields = ['id', 'student', 'homework', 'description', 'is_fixed', 'images']
 
     def validate_student(self, value):
         if not Student.objects.filter(id=value).exists():
@@ -128,13 +128,12 @@ class MistakeSerializer(serializers.ModelSerializer):
 
 class LessonSerializer(serializers.ModelSerializer):
     homeworks = serializers.SerializerMethodField()
-    errors = MistakeSerializer(many=True, read_only=True, source='mistake_set')
 
     class Meta:
         model = Lesson
         fields = [
             'id', 'day_of_week', 'start_time','day', 'end_time', 'zoom_link',
-            'students', 'homeworks', 'errors', 'description'
+            'students', 'homeworks', 'description'
         ]
 
     def get_homeworks(self, obj):
