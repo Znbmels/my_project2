@@ -1,13 +1,23 @@
-from app.models import Homework, Student
+from app.models import Homework, Student, Lesson
 from app.serializers import HomeworkSerializer
 
-def create_homework(student_id, teacher, day, topic, tasks):
+def create_homework(student_id, teacher, lesson_id, day, topic, tasks):
     try:
         student = Student.objects.get(id=student_id)
     except Student.DoesNotExist:
         raise ValueError(f"Student with ID {student_id} does not exist.")
 
-    # Создаём домашнее задание
+    try:
+        lesson = Lesson.objects.get(id=lesson_id)
+    except Lesson.DoesNotExist:
+        raise ValueError(f"Lesson with ID {lesson_id} does not exist.")
+
+    if not topic:
+        topic = lesson.name
+        # Создаём домашнее задание
+    if not topic and not lesson:
+        raise ValueError(f"Enter topic name or lesson id")
+
     homework = Homework.objects.create(
         student=student,
         teacher=teacher,

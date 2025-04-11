@@ -76,6 +76,10 @@ class HomeworkSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Student not found.")
         return value
 
+    def get_images(self, obj):
+        request = self.context.get('request')
+        return [request.build_absolute_uri(image.image.url) for image in obj.images.all()]
+
 class MistakeImageUploadSerializer(serializers.Serializer): #Сериализатор для POST-запроса
     mistake = serializers.IntegerField()
     images = serializers.ListField(

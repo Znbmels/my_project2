@@ -92,8 +92,8 @@ class HomeworkListView(APIView):
 
         try:
             # Исправление запроса
-            homeworks = Homework.objects.select_related('student')  # Используйте 'student' вместо 'lesson'
-            serializer = HomeworkSerializer(homeworks, many=True)
+            homeworks = Homework.objects.select_related('student', 'teacher').prefetch_related('images')  # Используйте 'student' вместо 'lesson'
+            serializer = HomeworkSerializer(homeworks, many=True, context={"request": request})
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         except Exception as e:
@@ -144,11 +144,13 @@ class HomeworkCreateView(APIView):
             # Создаём ДЗ для каждого студента
             teacher = request.user.teacher
             homeworks = []
+
             for student in students:
                 # Передаем данные в сервис для создания ДЗ
                 homework_data = create_homework(
                     student.id,
                     teacher,
+                    request.data.get("lesson_id"),
                     request.data.get("day"),
                     request.data.get("topic"),
                     request.data.get("tasks")
@@ -283,10 +285,33 @@ class StudentHomeworkListView(APIView):
                                 status=status.HTTP_403_FORBIDDEN)
 
             student = request.user.student
-            today = date.today()
-            homeworks = Homework.objects.filter(student=student,
-                                                day__gte=today
-                                                ).select_related('teacher')
+            homeworks = Homework.objects.filter(student=student)
+
+            #Фильтрация ДЗ по дате
+            date_str = request.query_params.get('date')
+            if date_str:
+                try:
+                    filter_date = date.fromisoformat(date_str)
+                    homeworks = homeworks.filter(day=filter_date)
+                except ValueError:
+                    return Response({"error": "Invalid date format. Use YYYY-MM-DD."},
+                                    status=status.HTTP_400_BAD_REQUEST)
+            else:
+                today = date.today()
+                homeworks = homeworks.filter(day__gte=today)
+
+            #Перевод string to boolean
+            def str_to_bool(value):
+                return str(value).strip().lower() in ("true", "1", "yes")
+
+            #Фильтрация ДЗ на готовность
+            is_done_str = request.query_params.get('is_done')
+            if is_done_str is not None:
+                try:
+                    homeworks = homeworks.filter(is_done=str_to_bool(is_done_str))
+                except ValueError:
+                    return Response({"error": "Invalid date format. Use YYYY-MM-DD."},
+                                    status=status.HTTP_400_BAD_REQUEST)
 
             grouped_data = defaultdict(list)
             for hw in homeworks:
@@ -303,6 +328,8 @@ class StudentHomeworkListView(APIView):
                 else:
                     task_items = [tasks]
 
+                image_urls = [request.build_absolute_uri(img.image.url) for img in hw.images.all()]
+
                 for task in task_items:
                     grouped_data[day].append({
                         "id": hw.id,
@@ -311,7 +338,8 @@ class StudentHomeworkListView(APIView):
                         "teacher_name": teacher_name,
                         "note": hw.note or "",
                         "isCorrected": is_corrected,
-                        "is_Done" : is_done
+                        "is_Done" : is_done,
+                        "images": image_urls
                     })
 
             response_data = [{"title": day, "data": items} for day,
