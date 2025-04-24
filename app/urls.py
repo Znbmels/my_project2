@@ -4,7 +4,7 @@ from django.urls import path
 from . import views
 from .views import MistakeUpdateView
 from .views import StudentListView
-
+from .views import StudentHomeworkListView, TasksUpdateView, MurajaahUpdateView
 urlpatterns = [
     path('', views.ApiRootView.as_view(), name='api-root'),
     path('register/', views.RegisterView.as_view(), name='register'),
@@ -16,6 +16,8 @@ urlpatterns = [
     path('teacher/mistakes/create/', views.MistakeCreateView.as_view(), name='mistake-create'),
     path('mistakes/list/', views.MistakeListView.as_view(), name='mistake-list'),
     path('student/homeworks/', views.StudentHomeworkListView.as_view(), name='student-homeworks'),
+    path('tasks/<int:task_id>', TasksUpdateView.as_view(), name='homework-patch'),
+    path('murajaahs/<int:murajaah_id>', MurajaahUpdateView.as_view(), name='murajaah-patch'),
     path('student/mistakes/', views.StudentMistakeListView.as_view(), name='student-mistakes'),
     path('student/lessons/', views.StudentLessonsAPIView.as_view(), name='student-lessons'),
     path('mistakes/update/', MistakeUpdateView.as_view(), name='update-mistake-log'),
