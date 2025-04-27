@@ -1,6 +1,12 @@
-import logging
+from django.shortcuts import render
+from rest_framework import viewsets
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from datetime import date, timedelta
+from django.utils import timezone
 from collections import defaultdict
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
+from django.utils import timezone
 from django.views import View
 from django.http import JsonResponse
 from django.contrib.auth import authenticate
@@ -10,7 +16,7 @@ from rest_framework import status, generics, permissions
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from app.models import User, Homework, Mistake, Lesson, Student, VideoLesson
+from app.models import User, Homework, Mistake, Lesson, Student, VideoLesson, TasksBuffer, Murajaah, Task
 from app.services.utils import get_teacher_by_user
 from app.serializers import (
     UserSerializer,
@@ -22,17 +28,19 @@ from app.serializers import (
     StudentSerializer,
     HomeworkImageUploadSerializer,
     MistakeImageSerializer,
+    TaskSerializer
 )
 from rest_framework import generics
 from rest_framework.exceptions import PermissionDenied
 from app.services.lesson_service import create_lesson, get_lessons_by_teacher
-from app.services.homework_service import create_homework, get_homeworks_for_student
+from app.services.homework_service import create_homework, create_tasks, create_murajaah_tasks, buffer_update
 from app.services.error_service import create_mistake, get_mistakes_for_student
 from app.services.teacher_service import get_teacher_by_user
 from app.services.student_service import get_student_by_user
 from django.shortcuts import get_object_or_404
 from .models import HomeworkImage
 import traceback
+import  logging
 
 
 logger = logging.getLogger(__name__)
@@ -62,7 +70,6 @@ class RegisterView(APIView):
             serializer.save()  # Сохранение пользователя с хэшированием пароля
             return Response({"message": "User created successfully"}, status=status.HTTP_201_CREATED)
         return Response(serializer.mistakes, status=status.HTTP_400_BAD_REQUEST)
-
 
 # View for user login with JWT token generation
 class LoginView(APIView):
@@ -113,7 +120,6 @@ class HomeworkListView(APIView):
         if is_corrected is None:
             return Response({"error": "Missing 'is_corrected' field"}, status=status.HTTP_400_BAD_REQUEST)
         homework = get_object_or_404(Homework, id=homework_id)
-        homework.is_corrected = is_corrected
         homework.save()
 
         return Response({"message": "Homework corrected status updated."}, status=status.HTTP_200_OK)
@@ -149,11 +155,8 @@ class HomeworkCreateView(APIView):
                 # Передаем данные в сервис для создания ДЗ
                 homework_data = create_homework(
                     student.id,
-                    teacher,
-                    request.data.get("lesson_id"),
                     request.data.get("day"),
-                    request.data.get("topic"),
-                    request.data.get("tasks")
+                    request.data.get("note"),
                 )
                 homeworks.append(homework_data)
 
@@ -279,15 +282,27 @@ class StudentHomeworkListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        # Получаем студента
         try:
+            # является ли пользователь студентом
             if not hasattr(request.user, "student"):
-                return Response({"error": "Only students can view their homework assignments"},
-                                status=status.HTTP_403_FORBIDDEN)
+                return Response(
+                    {"error": "Only students can view their lessons"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
 
             student = request.user.student
-            homeworks = Homework.objects.filter(student=student)
-
-            #Фильтрация ДЗ по дате
+            if student.last_task_update != timezone.now().date():
+                # Homework.objects.filter(student=student).delete()
+                create_tasks(student)
+                create_murajaah_tasks(student)
+                student.last_task_update = timezone.now().date()
+                student.save()
+            today = timezone.now().date()
+            homeworks = Homework.objects.filter(student=student, day__gte=today,
+                                                day__lt=today + timedelta(days=7))
+            tasks = Task.objects.filter(homework__in=homeworks)
+            murajaahs = Murajaah.objects.filter(homework__in=homeworks)
             date_str = request.query_params.get('date')
             if date_str:
                 try:
@@ -296,83 +311,11 @@ class StudentHomeworkListView(APIView):
                 except ValueError:
                     return Response({"error": "Invalid date format. Use YYYY-MM-DD."},
                                     status=status.HTTP_400_BAD_REQUEST)
-            else:
-                today = date.today()
-                homeworks = homeworks.filter(day__gte=today)
-
-            #Перевод string to boolean
-            def str_to_bool(value):
-                return str(value).strip().lower() in ("true", "1", "yes")
-
-            #Фильтрация ДЗ на готовность
-            is_done_str = request.query_params.get('is_done')
-            if is_done_str is not None:
-                try:
-                    homeworks = homeworks.filter(is_done=str_to_bool(is_done_str))
-                except ValueError:
-                    return Response({"error": "Invalid date format. Use YYYY-MM-DD."},
-                                    status=status.HTTP_400_BAD_REQUEST)
-
-            grouped_data = defaultdict(list)
-            for hw in homeworks:
-                day = hw.day.strftime("%Y-%m-%d")
-                teacher_name = hw.teacher.name if hw.teacher else "N/A"
-                is_corrected = hw.is_corrected
-                is_done = hw.is_done
-
-                tasks = hw.tasks
-                if isinstance(tasks, dict):
-                    task_items = tasks.values()
-                elif isinstance(tasks, list):
-                    task_items = tasks
-                else:
-                    task_items = [tasks]
-
-                image_urls = [request.build_absolute_uri(img.image.url) for img in hw.images.all()]
-
-                for task in task_items:
-                    grouped_data[day].append({
-                        "id": hw.id,
-                        "topic": hw.topic,
-                        "task": task,
-                        "teacher_name": teacher_name,
-                        "note": hw.note or "",
-                        "isCorrected": is_corrected,
-                        "is_Done" : is_done,
-                        "images": image_urls
-                    })
-
-            response_data = [{"title": day, "data": items} for day,
-            items in grouped_data.items()]
-            return Response(response_data, status=status.HTTP_200_OK)
+            homeworks_serializer = HomeworkSerializer(homeworks, many=True)
+            return Response(homeworks_serializer.data, status=status.HTTP_200_OK)
 
         except Exception as e:
-            logger.error(f"Error fetching student homework: {e}")
-            return Response({"error": "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    def patch(self, request):
-        try:
-            if not hasattr(request.user, "student"):
-                return Response({"error": "Only students can update homework status"},
-                                status=status.HTTP_403_FORBIDDEN)
-
-            homework_id = request.data.get("homework_id")
-            is_done = request.data.get("is_done")
-
-            if homework_id is None or is_done is None:
-                return Response({"error": "Missing homework_id or is_done"}, status=status.HTTP_400_BAD_REQUEST)
-
-            # Проверка, что задание принадлежит текущему студенту
-            homework = Homework.objects.get(id=homework_id, student=request.user.student)
-            homework.is_done = is_done
-            homework.save()
-
-            return Response({"message": "Homework status updated"}, status=status.HTTP_200_OK)
-
-        except Homework.DoesNotExist:
-            return Response({"error": "Homework not found"}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            logger.error(f"Error updating homework status: {e}")
+            logger.error(f"Error fetching student error logs: {e}")
             return Response({"error": "Internal Server Error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def post(self, request, *args, **kwargs):
@@ -391,7 +334,56 @@ class StudentHomeworkListView(APIView):
             return Response(response_data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+class TasksUpdateView(APIView):
+    permission_classes = [IsAuthenticated]
 
+    def patch(self, request, task_id):
+        student = request.user.student
+        today = timezone.now().date()
+        is_done = request.data.get("is_Done")
+
+        if task_id is None or is_done is None:
+            return Response({"detail": "Both 'task_id' and 'is_Done' are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            homework = Homework.objects.get(student=student, day=today)
+        except Homework.DoesNotExist:
+            return Response({"detail": "No homework for today."}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            task = homework.tasks.get(id=task_id)
+        except Task.DoesNotExist:
+            return Response({"detail": "Task not found in today's homework."}, status=status.HTTP_404_NOT_FOUND)
+
+        task.is_done = is_done
+        task.save()
+        buffer_update(homework)
+        buf = TasksBuffer.objects.all()
+        return Response({"detail": f"Task {task.id} updated", "is_done": task.is_done})
+
+class MurajaahUpdateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, murajaah_id):
+        student = request.user.student
+        today = timezone.now().date()
+        is_done = request.data.get("is_Done")
+        if murajaah_id is None or is_done is None:
+            return Response({"detail": "Both 'murajaah_id' and 'is_Done' are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            homework = Homework.objects.get(student=student, day=today)
+        except Homework.DoesNotExist:
+            return Response({"detail": "No homework for today."}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            murajaah = homework.murajaahs.get(id=murajaah_id)
+        except Murajaah.DoesNotExist:
+            return Response({"detail": "Murajaah not found in today's homework."}, status=status.HTTP_404_NOT_FOUND)
+
+        murajaah.is_done = is_done
+        murajaah.save()
+        return Response({"detail": f"Murajaah {murajaah.id} updated", "is_done": murajaah.is_done})
 # View to list mistake logs for a student
 class StudentMistakeListView(APIView):
     permission_classes = [IsAuthenticated]

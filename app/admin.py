@@ -49,9 +49,9 @@ class LessonAdmin(admin.ModelAdmin):
 
 @admin.register(Homework)
 class HomeworkAdmin(admin.ModelAdmin):
-    list_display = ('student', 'day', 'topic')
+    list_display = ('student', 'day')
     list_filter = ('student', 'day')
-    search_fields = ('topic',)
+    search_fields = ('day',)
 
 @admin.register(Mistake)
 class MistakeAdmin(admin.ModelAdmin):

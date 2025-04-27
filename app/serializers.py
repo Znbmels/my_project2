@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from app.models import Lesson, Homework, Mistake, Student, VideoLesson, HomeworkImage, MistakeImage
+from app.models import (Lesson, Homework, Mistake, Student, VideoLesson, HomeworkImage, MistakeImage, Task, Murajaah,
+                        Surah, Ayah)
 from django.contrib.auth import get_user_model
 
 User = get_user_model()  # Используем вашу кастомную модель
@@ -23,11 +24,9 @@ class UserSerializer(serializers.ModelSerializer):
         return user
 
 class StudentSerializer(serializers.ModelSerializer):
-    user = UserSerializer(read_only=True)
-
     class Meta:
         model = Student
-        fields = ['id', 'user', 'name']
+        fields = '__all__'
 
 class HomeworkImageUploadSerializer(serializers.Serializer): #Сериализатор для POST-запроса
     homework = serializers.IntegerField()
@@ -63,22 +62,6 @@ class HomeworkImageSerializer(serializers.ModelSerializer): #Сериализа�
     class Meta:
         model = HomeworkImage
         fields = ['id', 'homework', 'image', 'uploaded_at']
-
-class HomeworkSerializer(serializers.ModelSerializer):
-    images = HomeworkImageSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = Homework
-        fields = ['id', 'student', 'teacher', 'day', 'topic', 'tasks', 'is_corrected', 'is_done', 'images']
-
-    def validate_student(self, value):
-        if not Student.objects.filter(id=value).exists():
-            raise serializers.ValidationError("Student not found.")
-        return value
-
-    def get_images(self, obj):
-        request = self.context.get('request')
-        return [request.build_absolute_uri(image.image.url) for image in obj.images.all()]
 
 class MistakeImageUploadSerializer(serializers.Serializer): #Сериализатор для POST-запроса
     mistake = serializers.IntegerField()
@@ -156,3 +139,34 @@ class VideoLessonSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         # Создаем новый объект VideoLesson с присвоением пользователя в поле creator
         return VideoLesson.objects.create(**validated_data)
+
+class TaskSerializer(serializers.ModelSerializer):
+    surah_name = serializers.CharField(source='surah.name')
+    ayah_text = serializers.CharField(source='ayah.text')
+
+    class Meta:
+        model = Task
+        fields = ['id', 'surah_name', 'ayah_text', 'is_done']
+
+class MurajaahSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Murajaah
+        fields = ['id', 'start_page', 'end_page', 'is_done']
+
+class HomeworkSerializer(serializers.ModelSerializer):
+    images = HomeworkImageSerializer(many=True, read_only=True)
+    tasks = TaskSerializer(many=True, required=False)  # Сериализуем сам объект Task
+    murajaahs = MurajaahSerializer(many=True, required=False)
+
+    class Meta:
+        model = Homework
+        fields = ['id', 'day', 'tasks', 'murajaahs', 'note', 'images']
+
+    def validate_student(self, value):
+        if not Student.objects.filter(id=value).exists():
+            raise serializers.ValidationError("Student not found.")
+        return value
+
+    def get_images(self, obj):
+        request = self.context.get('request')
+        return [request.build_absolute_uri(image.image.url) for image in obj.images.all()]
